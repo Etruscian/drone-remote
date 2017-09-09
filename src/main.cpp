@@ -25,7 +25,6 @@ Not SPI
 */
 
 #define PAYLOAD_SIZE 8
-#define LEDPIN 13
 
 // Set up nRF24L01 radio on SPI bus plus pins 9 & 10
 RF24 radio(9,10);
@@ -35,18 +34,19 @@ const int pin_throttle = A0;    // set A0 as input
 const int pin_roll = A1;
 const int pin_pitch = A2;
 const int pin_yaw = A3;
-const int pin_arm = 8;
-const int pin_acro = 7;
+const int pin_switch1 = 7;
+const int pin_switch2 = 8;
 bool ok;
 uint16_t payload[PAYLOAD_SIZE];
+uint8_t acknowledgePayload[4];
 
 // Radio pipe addresses for the 2 nodes to communicate.
 const uint64_t pipes[2] = { 0x00F0F0F0F0LL, 0x00F0F0F0F0LL }; 
 //LL in the end means long long type, also declared by uint64_t (dus overbodig).
-
+int counter = 0;
 void setup(void)
 {
- Serial.begin(9600);    //set usb speed
+//  Serial.begin(115200);    //set usb speed
 //  printf_begin();         //run printf file to be able to print
 //  printf("\n\rRF24/examples/pingpair/\n\r");
 
@@ -55,7 +55,7 @@ void setup(void)
   //
 
   radio.begin();        // initiliaze radio file "RF24.h".
-  Serial.println(radio.get_status(),HEX);
+  Serial.begin(9600);
   // optionally, increase the delay between retries & # of retries
   radio.setRetries(15,15); // 15 times 15 micro seconds retries
 
@@ -70,8 +70,10 @@ void setup(void)
   radio.openWritingPipe(pipes[0]);      // use first adress in pipes
   radio.openReadingPipe(1,pipes[1]);    // use second adress in pipes
 
-  radio.setPALevel(RF_PWR_HIGH);
-  
+  radio.setPALevel(RF_PWR_LOW);
+  radio.setAutoAck(1,true);
+  radio.enableAckPayload();
+  radio.enableDynamicPayloads();
   //
   // Start listening
   //
@@ -80,9 +82,6 @@ void setup(void)
   // First, stop listening so we can talk.
   radio.stopListening();
 
-  pinMode(pin_acro, INPUT);
-  pinMode(pin_arm, INPUT);
-
   // set up interrupt so that readings are done with 500Hz
   noInterrupts();
   TCCR2B = 0;
@@ -90,7 +89,7 @@ void setup(void)
   TCCR2B |= 1 << CS12;
   TCNT2 = 0x83;
   TIMSK2 |= 1 << OCIE2A;
-  interrupts();
+ interrupts();
 }  // end setup
 
 ISR(TIMER2_COMPA_vect){
@@ -101,15 +100,31 @@ ISR(TIMER2_COMPA_vect){
   payload[1] = analogRead(pin_roll);
   payload[2] = analogRead(pin_pitch);
   payload[3] = analogRead(pin_yaw);
-  payload[4] = (digitalRead(pin_acro)&0x01)<<1 | (digitalRead(pin_arm)&0x01);
+  payload[4] = digitalRead(pin_switch1)<<1 | (digitalRead(pin_switch2) &0x01);
 
   ok = radio.write( &payload, PAYLOAD_SIZE ); // return value named "ok" if acknowledge is received within timeout.
-  
-  digitalWrite(LEDPIN, 0);
-  if (!ok)
-    digitalWrite(LEDPIN,1);
+  if (radio.isAckPayloadAvailable()){
+        ok = radio.read(&acknowledgePayload,4);
+      } else {}
+//  digitalWrite(LEDPIN, 0);
+//  if (!ok)
+//    digitalWrite(LEDPIN,1);
 }
 
 void loop(void)
 {
+  payload[0] = analogRead(pin_throttle);
+  payload[1] = analogRead(pin_roll);
+  payload[2] = analogRead(pin_pitch);
+  payload[3] = analogRead(pin_yaw);
+  payload[4] = digitalRead(pin_switch1)<<1 | (digitalRead(pin_switch2) &0x01);
+
+  ok = radio.write( &payload, PAYLOAD_SIZE ); // return value named "ok" if acknowledge is received within timeout.
+  if (radio.isAckPayloadAvailable()){
+    ok = radio.read(&acknowledgePayload,4);Serial.print(acknowledgePayload[1]); Serial.println(acknowledgePayload[0]);
+  } else {}
+//  if (ok){Serial.print(acknowledgePayload[3]); Serial.print(acknowledgePayload[2]); Serial.print(acknowledgePayload[1]); Serial.println(acknowledgePayload[0]);
+//  }
+  
+//  Serial.println(analogRead(pin_throttle));
 }
