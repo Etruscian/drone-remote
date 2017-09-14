@@ -20,7 +20,7 @@ SPI: 1) Data from master to slave (Mosi)
 Not SPI
         pin 9  = enables chip or not to allow radio transmission
         pin 7  = determines ping/pong
-        pin A0 = Throttle test
+        pin A0 = Throttle
         
 */
 
@@ -28,7 +28,6 @@ Not SPI
 #define TIMERCOUNTERVALUE 0x83
 // #define DEBUG__
 
-// Set up nRF24L01 radio on SPI bus plus pins 9 & 10
 RF24 radio(9,10);
 
 // Set input pins
@@ -95,7 +94,7 @@ ISR(TIMER2_COMPA_vect){
     Serial.println(acknowledgePayload[1] <<8 | acknowledgePayload[0]);
 #endif
   } else {
-    
+
   }
 }
 
