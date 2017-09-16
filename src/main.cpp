@@ -2,7 +2,6 @@
 #include <SPI.h> // Includes SPI libaray (port 10, 11, 12, 13)
 #include "nRF24L01.h"
 #include "RF24.h"
-#include "printf.h"
 
 /* 
 
@@ -25,7 +24,7 @@ Not SPI
 */
 
 #define PAYLOAD_SIZE 8
-#define TIMERCOUNTERVALUE 0x83
+#define TIMERCOUNTERVALUE_500HZ 0x83
 // #define DEBUG__
 
 RF24 radio(9,10);
@@ -51,40 +50,34 @@ void setup(void)
   Serial.begin(2000000);
 #endif
 
+  pinMode(pinSwitch1, INPUT_PULLUP);
+  pinMode(pinSwitch2, INPUT_PULLUP);
+
   radio.begin();
   radio.setRetries(15,15); // 15 times 15 micro seconds retries
-  radio.setChannel(101);    // Radio channel expects channel code.
   radio.openWritingaddress(address);
   radio.setPALevel(RF_PWR_HIGH);
   radio.enableAckPayload();
   radio.enableDynamicPayloads();
-
-  // enable radio
-  // TODO: make separate function for enable radio
-  radio.startListening();
-
-  // Put in transmit mode
-  // TODO: rename to transmit mode
-  radio.stopListening();
 
   // set up interrupt so that readings are done with 500Hz
   noInterrupts();
   TCCR2B = 0;
   TCCR2B |= 1 << WGM12;
   TCCR2B |= 1 << CS12;
-  TCNT2 = TIMERCOUNTERVALUE;
+  TCNT2 = TIMERCOUNTERVALUE_500HZ;
   TIMSK2 |= 1 << OCIE2A;
   interrupts();
 }
 
 ISR(TIMER2_COMPA_vect){
-  TCNT2 = TIMERCOUNTERVALUE;
+  TCNT2 = TIMERCOUNTERVALUE_500HZ;
   
   payload[0] = analogRead(pinThrottle);
   payload[1] = analogRead(pinRoll);
   payload[2] = analogRead(pinPitch);
   payload[3] = analogRead(pinYaw);
-  payload[4] = digitalRead(pinSwitch1)<<1 | (digitalRead(pinSwitch2) &0x01);
+  payload[4] = (!digitalRead(pinSwitch1) &0x01)<<1 | (!digitalRead(pinSwitch2) &0x01); // inverted due to pullup resistor
 
   success = radio.write( &payload, PAYLOAD_SIZE );
 
