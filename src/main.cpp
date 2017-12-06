@@ -25,17 +25,17 @@ Not SPI
 
 #define PAYLOAD_SIZE 8
 #define TIMERCOUNTERVALUE_500HZ 0x83
-// #define DEBUG__
+#define DEBUG__
 
 RF24 radio(9,10);
 
 // Set input pins
-const int pinThrottle = A0;
-const int pinRoll = A1;
-const int pinPitch = A2;
-const int pinYaw = A3;
-const int pinSwitch1 = 7;
-const int pinSwitch2 = 8;
+const int pinThrottle = A3;
+const int pinRoll = A0;
+const int pinPitch = A1;
+const int pinYaw = A2;
+const int pinSwitch1 = 8;
+const int pinSwitch2 = 7;
 
 bool success;
 
@@ -47,19 +47,20 @@ const uint64_t address =  0x00F0F0F0F0;
 void setup(void)
 {
 #ifdef DEBUG__
-  Serial.begin(2000000);
+  Serial.begin(9600);
 #endif
 
-  pinMode(pinSwitch1, INPUT_PULLUP);
+  // pinMode(pinSwitch1, INPUT_PULLUP);
+  pinMode(pinSwitch1,OUTPUT);
   pinMode(pinSwitch2, INPUT_PULLUP);
 
   radio.begin();
   radio.setRetries(15,15); // 15 times 15 micro seconds retries
-  radio.openWritingaddress(address);
-  radio.setPALevel(RF_PWR_HIGH);
+  radio.openWritingPipe(address);
+  radio.setPALevel(RF24_PA_HIGH);
   radio.enableAckPayload();
   radio.enableDynamicPayloads();
-
+  digitalWrite(pinSwitch1,HIGH);
   // set up interrupt so that readings are done with 500Hz
   noInterrupts();
   TCCR2B = 0;
@@ -67,7 +68,9 @@ void setup(void)
   TCCR2B |= 1 << CS12;
   TCNT2 = TIMERCOUNTERVALUE_500HZ;
   TIMSK2 |= 1 << OCIE2A;
+#ifndef DEBUG__
   interrupts();
+#endif
 }
 
 ISR(TIMER2_COMPA_vect){
@@ -77,20 +80,27 @@ ISR(TIMER2_COMPA_vect){
   payload[1] = analogRead(pinRoll);
   payload[2] = analogRead(pinPitch);
   payload[3] = analogRead(pinYaw);
-  payload[4] = (!digitalRead(pinSwitch1) &0x01)<<1 | (!digitalRead(pinSwitch2) &0x01); // inverted due to pullup resistor
+  payload[4] = (!digitalRead(pinSwitch2) &0x01)<<1 | (!digitalRead(pinSwitch2) &0x01); // inverted due to pullup resistor
 
   success = radio.write( &payload, PAYLOAD_SIZE );
 
   if (radio.isAckPayloadAvailable()){
     success = radio.read(&acknowledgePayload,4);
-#ifdef DEBUG__
-    Serial.println(acknowledgePayload[1] <<8 | acknowledgePayload[0]);
-#endif
+    digitalWrite(pinSwitch1,LOW);
   } else {
-
+    
   }
 }
 
 void loop(void)
 {
+#ifdef DEBUG__
+  Serial.print(analogRead(pinThrottle));
+  Serial.print("\t");
+  Serial.print(analogRead(pinRoll));
+  Serial.print("\t");
+  Serial.print(analogRead(pinYaw));
+  Serial.print("\t");
+  Serial.println(analogRead(pinPitch));//acknowledgePayload[1] <<8 | acknowledgePayload[0]);
+#endif
 }
