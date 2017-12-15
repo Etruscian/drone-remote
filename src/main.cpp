@@ -38,7 +38,7 @@ const int pinSwitch1 = 8;
 const int pinSwitch2 = 7;
 
 const uint16_t rollOffset = 471;
-const uint16_t pitchOffset = 547;
+const uint16_t pitchOffset = 527;
 const uint16_t yawOffset = 704;
 
 bool success;
@@ -96,7 +96,7 @@ ISR(TIMER2_COMPA_vect){
 
   if (radio.isAckPayloadAvailable()){
     success = radio.read(&acknowledgePayload,4);
-    Serial.println(success);
+    // Serial.println(success);
     // digitalWrite(pinSwitch1,LOW);
   } else {
     
@@ -108,10 +108,25 @@ void loop(void)
 #ifdef DEBUG__
   Serial.print(analogRead(pinThrottle));
   Serial.print("\t");
-  Serial.print((int16_t)(analogRead(pinRoll) - rollOffset));
-  Serial.print("\t");
-  Serial.print((int16_t)(analogRead(pinYaw) - yawOffset));
-  Serial.print("\t");
+  // Serial.print((int16_t)(analogRead(pinRoll) - rollOffset));
+  // Serial.print("\t");
+  // Serial.print((int16_t)(analogRead(pinYaw) - yawOffset));
+  // Serial.print("\t");
   Serial.println((int16_t)(analogRead(pinPitch) - pitchOffset));//acknowledgePayload[1] <<8 | acknowledgePayload[0]);
+
+  payload[0] = (uint16_t)analogRead(pinThrottle);
+  payload[1] = (uint16_t)analogRead(pinRoll) - rollOffset;
+  payload[2] = (uint16_t)analogRead(pinPitch) - pitchOffset;
+  payload[3] = (uint16_t)analogRead(pinYaw) - yawOffset;
+  payload[4] = (uint16_t)(!digitalRead(pinSwitch2) &0x01)<<1 | (!digitalRead(pinSwitch2) &0x01); // inverted due to pullup resistor
+
+  success = radio.write(&payload, PAYLOAD_SIZE);
+  if (radio.isAckPayloadAvailable()){
+    success = radio.read(&acknowledgePayload,4);
+    Serial.println(success);
+    // digitalWrite(pinSwitch1,LOW);
+  } else {
+    
+  }
 #endif
 }
