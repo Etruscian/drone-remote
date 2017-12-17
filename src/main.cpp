@@ -29,6 +29,9 @@ Not SPI
 
 RF24 radio(9,10);
 
+volatile uint16_t packetReceived = 0;
+volatile uint8_t signalStrength = 100;
+
 // Set input pins
 const int pinThrottle = A3;
 const int pinRoll = A0;
@@ -48,7 +51,7 @@ uint8_t acknowledgePayload[4];
 
 void startRadio(void){
   radio.begin();
-  radio.setRetries(15,15); // 15 times 15 micro seconds retries
+  radio.setRetries(1,5); // 5 times 5 micro seconds retries
 
   uint64_t address =  0x00F0F0F0F0;
 
@@ -63,7 +66,7 @@ void setup(void)
 #ifdef DEBUG__
   Serial.begin(9600);
 #endif
-
+  // Serial.begin(9600);
   // Configure the switches
   pinMode(pinSwitch1, INPUT_PULLUP);
   pinMode(pinSwitch2, INPUT_PULLUP);
@@ -93,19 +96,30 @@ ISR(TIMER2_COMPA_vect){
   payload[4] = (uint16_t)(!digitalRead(pinSwitch2) &0x01)<<1 | (!digitalRead(pinSwitch2) &0x01); // inverted due to pullup resistor
 
   success = radio.write(&payload, PAYLOAD_SIZE);
-
+  
   if (radio.isAckPayloadAvailable()){
     success = radio.read(&acknowledgePayload,4);
+    packetReceived = 100;
+    // Serial.write("a");
     // Serial.println(success);
     // digitalWrite(pinSwitch1,LOW);
   } else {
-    
+    // Serial.write("n");
+    packetReceived = 0;
   }
+
+  signalStrength = (signalStrength*0.25 + packetReceived*0.75);
+
 }
 
 void loop(void)
 {
+  // String temp = (String)(signalStrength);
+  // Serial.print(temp);
 #ifdef DEBUG__
+  String temp = (String)(signalStrength);
+  Serial.print(temp);
+  Serial.print("\t");
   Serial.print(analogRead(pinThrottle));
   Serial.print("\t");
   // Serial.print((int16_t)(analogRead(pinRoll) - rollOffset));
@@ -123,10 +137,11 @@ void loop(void)
   success = radio.write(&payload, PAYLOAD_SIZE);
   if (radio.isAckPayloadAvailable()){
     success = radio.read(&acknowledgePayload,4);
-    Serial.println(success);
+    packetReceived = 100;
     // digitalWrite(pinSwitch1,LOW);
   } else {
-    
+    packetReceived = 0;
   }
+  signalStrength = (signalStrength + packetReceived) / 2.0;
 #endif
 }
