@@ -53,7 +53,7 @@ void startRadio(void){
   radio.begin();
   radio.setRetries(1,5); // 5 times 5 micro seconds retries
 
-  uint64_t address =  0x00F0F0F0F0;
+  uint64_t address =  0x007FFFFFFF;
 
   radio.openWritingPipe(address); // Open pipe 0 with the specified address
   radio.setPALevel(RF24_PA_HIGH); // Set power level to high
